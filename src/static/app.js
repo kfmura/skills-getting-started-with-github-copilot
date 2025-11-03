@@ -20,11 +20,40 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
+        // Pretty participants section with delete icon and no bullets
+        let participantsHTML = "";
+        if (details.participants.length > 0) {
+          participantsHTML = `
+            <div class="participants-section">
+              <span class="participants-title">Participants:</span>
+              <div class="participants-list">
+                ${details.participants
+                  .map(
+                    (email) =>
+                      `<div class="participant-item">
+                        <span class="participant-email">${email}</span>
+                        <span class="delete-icon" title="Remove participant" data-activity="${name}" data-email="${email}">&#128465;</span>
+                      </div>`
+                  )
+                  .join("")}
+              </div>
+            </div>
+          `;
+        } else {
+          participantsHTML = `
+            <div class="participants-section">
+              <span class="participants-title">Participants:</span>
+              <span class="no-participants">No one signed up yet.</span>
+            </div>
+          `;
+        }
+
         activityCard.innerHTML = `
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          ${participantsHTML}
         `;
 
         activitiesList.appendChild(activityCard);
@@ -34,6 +63,39 @@ document.addEventListener("DOMContentLoaded", () => {
         option.value = name;
         option.textContent = name;
         activitySelect.appendChild(option);
+      });
+      // Add event listeners for delete icons
+      document.querySelectorAll('.delete-icon').forEach(icon => {
+        icon.addEventListener('click', async (e) => {
+          const activity = icon.getAttribute('data-activity');
+          const email = icon.getAttribute('data-email');
+          if (confirm(`Remove ${email} from ${activity}?`)) {
+            try {
+              const res = await fetch(`/activities/${encodeURIComponent(activity)}/unregister`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+              });
+              if (res.ok) {
+                fetchActivities();
+                messageDiv.textContent = `Unregistered ${email} from ${activity}.`;
+                messageDiv.className = "success";
+                messageDiv.classList.remove("hidden");
+                setTimeout(() => { messageDiv.classList.add("hidden"); }, 5000);
+              } else {
+                messageDiv.textContent = 'Failed to unregister participant.';
+                messageDiv.className = "error";
+                messageDiv.classList.remove("hidden");
+                setTimeout(() => { messageDiv.classList.add("hidden"); }, 5000);
+              }
+            } catch {
+              messageDiv.textContent = 'Network error.';
+              messageDiv.className = "error";
+              messageDiv.classList.remove("hidden");
+              setTimeout(() => { messageDiv.classList.add("hidden"); }, 5000);
+            }
+          }
+        });
       });
     } catch (error) {
       activitiesList.innerHTML = "<p>Failed to load activities. Please try again later.</p>";
@@ -62,6 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
