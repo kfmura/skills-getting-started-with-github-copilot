@@ -108,7 +108,6 @@ def signup_for_activity(activity_name: str, email: str):
 
 
 # Unregister endpoint
-from fastapi import Request
 from pydantic import BaseModel
 
 class UnregisterRequest(BaseModel):
