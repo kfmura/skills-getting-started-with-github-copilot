@@ -20,27 +20,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
-        // Create participants list HTML
+        // Pretty participants section with delete icon and no bullets
         let participantsHTML = "";
         if (details.participants.length > 0) {
           participantsHTML = `
-            <div style="margin-top:12px;">
-              <strong style="color:#3949ab;">Participants:</strong>
-              <ul style="margin-top:6px; margin-bottom:0; padding-left:18px;">
+            <div class="participants-section">
+              <span class="participants-title">Participants:</span>
+              <div class="participants-list">
                 ${details.participants
                   .map(
                     (email) =>
-                      `<li style="background:#e3eafc; border-radius:3px; padding:3px 8px; margin-bottom:3px; color:#1a237e; font-size:0.97em;">${email}</li>`
+                      `<div class="participant-item">
+                        <span class="participant-email">${email}</span>
+                        <span class="delete-icon" title="Remove participant" data-activity="${name}" data-email="${email}">&#128465;</span>
+                      </div>`
                   )
                   .join("")}
-              </ul>
+              </div>
             </div>
           `;
         } else {
           participantsHTML = `
-            <div style="margin-top:12px;">
-              <strong style="color:#3949ab;">Participants:</strong>
-              <span style="color:#888; font-size:0.97em;">No one signed up yet.</span>
+            <div class="participants-section">
+              <span class="participants-title">Participants:</span>
+              <span class="no-participants">No one signed up yet.</span>
             </div>
           `;
         }
@@ -60,6 +63,39 @@ document.addEventListener("DOMContentLoaded", () => {
         option.value = name;
         option.textContent = name;
         activitySelect.appendChild(option);
+      });
+      // Add event listeners for delete icons
+      document.querySelectorAll('.delete-icon').forEach(icon => {
+        icon.addEventListener('click', async (e) => {
+          const activity = icon.getAttribute('data-activity');
+          const email = icon.getAttribute('data-email');
+          if (confirm(`Remove ${email} from ${activity}?`)) {
+            try {
+              const res = await fetch(`/activities/${encodeURIComponent(activity)}/unregister`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+              });
+              if (res.ok) {
+                fetchActivities();
+                messageDiv.textContent = `Unregistered ${email} from ${activity}.`;
+                messageDiv.className = "success";
+                messageDiv.classList.remove("hidden");
+                setTimeout(() => { messageDiv.classList.add("hidden"); }, 5000);
+              } else {
+                messageDiv.textContent = 'Failed to unregister participant.';
+                messageDiv.className = "error";
+                messageDiv.classList.remove("hidden");
+                setTimeout(() => { messageDiv.classList.add("hidden"); }, 5000);
+              }
+            } catch {
+              messageDiv.textContent = 'Network error.';
+              messageDiv.className = "error";
+              messageDiv.classList.remove("hidden");
+              setTimeout(() => { messageDiv.classList.add("hidden"); }, 5000);
+            }
+          }
+        });
       });
     } catch (error) {
       activitiesList.innerHTML = "<p>Failed to load activities. Please try again later.</p>";
@@ -88,6 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
